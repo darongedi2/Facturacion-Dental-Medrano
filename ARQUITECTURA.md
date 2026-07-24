@@ -46,6 +46,7 @@ Aplicación web para que personal administrativo suba facturas argentinas (PDF o
 | GPT con `json_schema` estructurado en vez de parsear texto libre | Elimina una clase entera de bugs de parseo; el modelo devuelve exactamente el shape que la base espera, campo por campo, o `null` si no encuentra el dato (nunca inventa). |
 | Un archivo = una factura (1:1) | Simplifica el modelo. Si mañana aparece el caso de "un PDF con 3 facturas adentro" se resuelve como mejora incremental, no de entrada. |
 | Sin motor de reglas configurable | A diferencia del proyecto de conciliación bancaria, acá las reglas de validación (CUIT, IVA, duplicados) son fijas y conocidas de antemano (son reglas de AFIP), no hace falta que el usuario las configure. |
+| **Supabase Auth en vez de `password_hash` propio** (ajustado en el paso 3, ver §3) | Manejar contraseñas a mano (hashing, reseteo, expiración de sesión) es una superficie de riesgo de seguridad enorme para un beneficio nulo — Supabase Auth ya lo resuelve, probado en producción por miles de proyectos. `public.usuarios` pasa a ser una tabla de **perfil** (nombre, rol) que referencia `auth.users`, no la tabla de login. |
 
 ## 3. Base de datos (Supabase Postgres)
 
@@ -53,11 +54,12 @@ Cuatro tablas, como pediste, más una tabla de soporte (`sesiones_carga`) para a
 
 ### `usuarios`
 
+Tabla de **perfil**, no de login: la autenticación (contraseña, sesión, tokens) la maneja Supabase Auth (`auth.users`), que ya viene con el proyecto de Supabase. `public.usuarios.id` referencia `auth.users.id` 1:1, y se crea automáticamente via trigger cuando alguien se registra.
+
 | Columna | Tipo | Notas |
 |---|---|---|
-| id | uuid PK | |
-| email | text unique | |
-| password_hash | text | si no se usa Supabase Auth directamente |
+| id | uuid PK, FK → auth.users | |
+| email | text | copiado de auth.users para no tener que hacer join al listar |
 | nombre | text | |
 | rol | text | `admin` \| `operador` (alcanza con dos roles) |
 | activo | boolean | default true |

@@ -1,5 +1,8 @@
-import { noImplementado } from "@/lib/api-stub";
+import { NextResponse } from "next/server";
+import { crearClienteServidor } from "@/lib/supabase/servidor";
 
 export async function POST() {
-  return noImplementado("POST /api/auth/logout");
+  const supabase = await crearClienteServidor();
+  await supabase.auth.signOut();
+  return NextResponse.json({ ok: true });
 }
