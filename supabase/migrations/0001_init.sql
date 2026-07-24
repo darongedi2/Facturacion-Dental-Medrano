@@ -1,0 +1,2 @@
+-- Migracion inicial: se completa en el paso 3 del roadmap (ARQUITECTURA.md §12).
+-- Tablas: usuarios, sesiones_carga, archivos, facturas, productos + RLS.

@@ -1,0 +1,5 @@
+import { noImplementado } from "@/lib/api-stub";
+
+export async function POST() {
+  return noImplementado("POST /api/sesiones-carga/[id]/archivos");
+}
