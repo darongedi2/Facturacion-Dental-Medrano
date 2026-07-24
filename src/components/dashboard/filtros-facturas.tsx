@@ -72,7 +72,7 @@ export function FiltrosFacturas({
       </div>
       <div className="col-span-full flex gap-2">
         <Button type="submit" size="sm">Filtrar</Button>
-        <Button render={<Link href="/dashboard" />} variant="ghost" size="sm">
+        <Button render={<Link href="/dashboard" />} nativeButton={false} variant="ghost" size="sm">
           Limpiar
         </Button>
       </div>

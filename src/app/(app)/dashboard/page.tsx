@@ -48,10 +48,10 @@ export default async function DashboardPage({
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Facturas procesadas</h1>
         <div className="flex gap-2">
-          <Button render={<Link href="/cargar" />} size="lg">
+          <Button render={<Link href="/cargar" />} nativeButton={false} size="lg">
             Cargar Facturas
           </Button>
-          <Button render={<a href="/api/export/excel" />} variant="outline" size="lg">
+          <Button render={<a href="/api/export/excel" />} nativeButton={false} variant="outline" size="lg">
             Exportar Excel
           </Button>
         </div>

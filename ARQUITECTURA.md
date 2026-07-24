@@ -366,6 +366,7 @@ Este proyecto se creó con **Next.js 16**, más nuevo que la mayoría de los eje
 - Los `params` de `page.tsx` y `route.ts` dinámicos son **`Promise`** (hay que `await`-earlos) — ya aplicado en los stubs creados en el paso 2.
 - Ante cualquier duda de API durante los próximos pasos, revisar primero `node_modules/next/dist/docs/01-app/` del propio proyecto antes de asumir comportamiento de versiones anteriores.
 - **shadcn/ui en este proyecto genera componentes sobre Base UI, no Radix UI.** El patrón `asChild` (Radix) no existe acá: para renderizar un `Button` (u otro componente) como otro elemento (`<Link>`, `<a>`) se usa la prop **`render`**: `<Button render={<Link href="/x" />}>Texto</Button>`. Aplica a cualquier componente nuevo de shadcn que se agregue (`Dialog`, `Select`, etc. pueden tener la misma diferencia — revisar el `.tsx` generado antes de asumir la API de Radix).
+  - Ademas, si el elemento de `render` **no** es un `<button>` real (por ejemplo `<Link>`/`<a>`), Base UI tira un error en consola a menos que se agregue **`nativeButton={false}`**: `<Button render={<Link href="/x" />} nativeButton={false}>Texto</Button>`.
 
 ---
 
