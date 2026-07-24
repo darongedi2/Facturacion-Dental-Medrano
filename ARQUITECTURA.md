@@ -26,16 +26,17 @@ Aplicación web para que personal administrativo suba facturas argentinas (PDF o
 └─────────────┘                 │
                                  ▼
                         ┌─────────────────┐
-                        │   OpenAI API     │
-                        │ - Vision (lectura)│
-                        │ - GPT (estructura)│
+                        │  Google Gemini   │
+                        │  (vision + JSON  │
+                        │  estructurado en │
+                        │  un solo llamado)│
                         └─────────────────┘
 ```
 
 - **Un solo deploy** (Next.js en Vercel): la UI y el backend viven en el mismo proyecto (Route Handlers de `app/api/*`), sin servicio backend separado.
 - **Supabase Postgres** guarda todo el dato estructurado. **Supabase Storage** guarda los archivos originales (PDF/imagen) con nombre normalizado.
-- **OpenAI Vision** convierte cada página del comprobante en texto/estructura legible; **GPT** (con salida JSON estructurada — `response_format: json_schema`) arma el objeto final validando contra el modelo de datos.
-- El procesamiento de cada archivo es **asincrónico por archivo, pero secuencial dentro de un lote** para no disparar cientos de llamados a OpenAI en paralelo y quedarse sin rate limit; el usuario ve una barra de progreso por archivo.
+- **Google Gemini** (multimodal) recibe la imagen/PDF de la factura y devuelve directamente el JSON estructurado (via `responseSchema`) que arma el objeto final validando contra el modelo de datos — un solo llamado, no dos.
+- El procesamiento de cada archivo es **asincrónico por archivo, pero secuencial dentro de un lote** para no disparar cientos de llamados a la API en paralelo y quedarse sin cuota gratuita; el usuario ve una barra de progreso por archivo.
 
 ### Decisiones de arquitectura clave
 
@@ -43,7 +44,8 @@ Aplicación web para que personal administrativo suba facturas argentinas (PDF o
 |---|---|
 | Route Handlers de Next.js en vez de backend separado (Express/Nest) | Un solo repo, un solo deploy, menos infraestructura — coherente con "no es un ERP", hay que poder mantenerlo con poco esfuerzo. |
 | Supabase (Postgres + Storage) en vez de un ORM+DB propios | Auth, Storage y Postgres integrados de fábrica, con RLS para aislar datos por usuario sin escribir esa capa a mano. |
-| GPT con `json_schema` estructurado en vez de parsear texto libre | Elimina una clase entera de bugs de parseo; el modelo devuelve exactamente el shape que la base espera, campo por campo, o `null` si no encuentra el dato (nunca inventa). |
+| **Google Gemini en vez de OpenAI** (cambiado a pedido del usuario: sin costo) | La API de Gemini (`gemini-2.0-flash` o similar) tiene nivel gratuito real para este volumen de uso, sin tarjeta. Ademas simplifica el diseño: un solo llamado multimodal (imagen/PDF -> JSON estructurado via `responseSchema`) reemplaza el esquema de dos pasos "Vision + GPT". |
+| JSON estructurado (`responseSchema` de Gemini) en vez de parsear texto libre | Elimina una clase entera de bugs de parseo; el modelo devuelve exactamente el shape que la base espera, campo por campo, o `null` si no encuentra el dato (nunca inventa). |
 | Un archivo = una factura (1:1) | Simplifica el modelo. Si mañana aparece el caso de "un PDF con 3 facturas adentro" se resuelve como mejora incremental, no de entrada. |
 | Sin motor de reglas configurable | A diferencia del proyecto de conciliación bancaria, acá las reglas de validación (CUIT, IVA, duplicados) son fijas y conocidas de antemano (son reglas de AFIP), no hace falta que el usuario las configure. |
 | **Supabase Auth en vez de `password_hash` propio** (ajustado en el paso 3, ver §3) | Manejar contraseñas a mano (hashing, reseteo, expiración de sesión) es una superficie de riesgo de seguridad enorme para un beneficio nulo — Supabase Auth ya lo resuelve, probado en producción por miles de proyectos. `public.usuarios` pasa a ser una tabla de **perfil** (nombre, rol) que referencia `auth.users`, no la tabla de login. |
@@ -191,13 +193,12 @@ Todas las tablas con policy `usuario_id = auth.uid()` (a través de `sesiones_ca
 3. Arrastra N archivos → cada uno sube a Supabase Storage → crea fila en archivos (estado=pendiente)
 4. Por cada archivo (secuencial):
    a. estado=procesando
-   b. Vision (OpenAI) convierte la/s pagina/s en texto+layout
-   c. GPT (json_schema) estructura los datos → objeto factura + productos[]
-   d. Validaciones (§8) corren sobre el objeto → errores_detectados[]
-   e. Calculo de confianza (§7)
-   f. Se guarda factura + productos en Postgres
-   g. Se renombra el archivo en Storage (nombre_normalizado)
-   h. estado=procesado (o error si Vision/GPT fallan)
+   b. Gemini recibe la imagen/PDF y devuelve el JSON estructurado (responseSchema) → objeto factura + productos[]
+   c. Validaciones (§8) corren sobre el objeto → errores_detectados[]
+   d. Calculo de confianza (§7)
+   e. Se guarda factura + productos en Postgres
+   f. Se renombra el archivo en Storage (nombre_normalizado)
+   g. estado=procesado (o error si Gemini falla)
 5. Usuario es llevado a Revisión de cada factura procesada
 6. Usuario corrige lo que haga falta → Guardar → estado=validada
 7. Desde el Dashboard, "Exportar Excel" → genera el .xlsx con las 4 hojas
@@ -353,7 +354,7 @@ facturas-ar-ia/
 3. Base de datos: migración SQL en Supabase (tablas §3 + RLS) + generación de tipos.
 4. Backend: rutas de auth, upload a Storage, CRUD de facturas, endpoint de export (esqueleto sin IA todavía, para poder probar el resto sin gastar tokens).
 5. Frontend: Login, Dashboard, Carga, Revisión — con datos mockeados/reales de la base, sin IA todavía.
-6. Integración OpenAI Vision + GPT: reemplaza el esqueleto de extracción por la lectura real, prompts con `json_schema`.
+6. Integración Google Gemini: reemplaza el esqueleto de extracción por la lectura real, un llamado multimodal con `responseSchema`.
 7. Validaciones (§8) + cálculo de confianza (§7).
 8. Exportación Excel: 4 hojas, formato profesional (encabezados, filtros, formato moneda/fecha, autoancho).
 9. Pulido final: manejo de errores, estados de carga, responsive, variables de entorno de producción, deploy a Vercel + Supabase.

@@ -78,7 +78,18 @@ export default function CargarPage() {
         });
         const cuerpo = await res.json();
         if (res.ok && cuerpo.archivos?.length > 0) {
-          nuevosResultados.push({ nombre: archivo.name, ok: true });
+          const archivoId = cuerpo.archivos[0].id as string;
+          const resProcesar = await fetch(`/api/archivos/${archivoId}/procesar`, { method: "POST" });
+          const cuerpoProcesar = await resProcesar.json();
+          if (resProcesar.ok) {
+            nuevosResultados.push({ nombre: archivo.name, ok: true });
+          } else {
+            nuevosResultados.push({
+              nombre: archivo.name,
+              ok: false,
+              mensaje: `Se subio, pero la IA no pudo leerla: ${cuerpoProcesar.error ?? "error desconocido"}`,
+            });
+          }
         } else {
           nuevosResultados.push({
             nombre: archivo.name,
@@ -200,8 +211,7 @@ export default function CargarPage() {
                 ))}
               </ul>
               <p className="text-sm text-muted-foreground">
-                Los archivos quedaron cargados. La lectura automatica con IA todavia no esta activa
-                (paso 6 del roadmap) — por ahora solo se guardaron los archivos.
+                Las facturas que se pudieron leer ya estan en el Dashboard, listas para revisar.
               </p>
               <Button onClick={() => router.push("/dashboard")}>Ir al Dashboard</Button>
             </div>
